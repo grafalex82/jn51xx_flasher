@@ -3,7 +3,7 @@ import struct
 # This file contains functions to dump the request and response packets of JN51xx bootloader protocol.
 # Most of the messages are described in the JN-AN-1003 "JN51xx Boot Loader Operation" document. However,
 # a few messages are not described in the document, were just reverse engineered from the sniffed data, 
-# or and their description is based on the JN51xxProgrammer.exe sources.
+# or their description is based on the JN51xxProgrammer.exe sources.
 
 def dumpGetChipIDRequest(data):
     print(">>  Chip ID Request")

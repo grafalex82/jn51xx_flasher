@@ -1,0 +1,41 @@
+Starting proxy on COM2 and COM5 ports
+>>  Chip ID Request
+<<  Chip ID Response: Status=0x00, ChipID=0x0100b686, BootloaderVer=0x000b0002
+>>  Read RAM Request: Address=0x01001500, Length=0x0010
+<<  Read RAM Response: Status=0x00, Data: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+>>  Select Flash Type: FlashType=4, Address=0x00000000
+<<  Select Flash Type Response: Status=0x00
+>>  Read Flash ID Request
+<<  Read Flash ID Response: Status=0x00, ManufacturerID=0xff, FlashID=0xff
+>>  Select Flash Type: FlashType=0, Address=0x00000000
+<<  Select Flash Type Response: Status=0x00
+>>  Read Flash ID Request
+<<  Read Flash ID Response: Status=0x00, ManufacturerID=0xff, FlashID=0xff
+>>  Select Flash Type: FlashType=5, Address=0x00000000
+<<  Select Flash Type Response: Status=0x00
+>>  Read Flash ID Request
+<<  Read Flash ID Response: Status=0x00, ManufacturerID=0xff, FlashID=0xff
+>>  Select Flash Type: FlashType=3, Address=0x00000000
+<<  Select Flash Type Response: Status=0x00
+>>  Read Flash ID Request
+<<  Read Flash ID Response: Status=0x00, ManufacturerID=0xff, FlashID=0xff
+>>  Select Flash Type: FlashType=1, Address=0x00000000
+<<  Select Flash Type Response: Status=0x00
+>>  Read Flash ID Request
+<<  Read Flash ID Response: Status=0x00, ManufacturerID=0xff, FlashID=0xff
+>>  Select Flash Type: FlashType=2, Address=0x00000000
+<<  Select Flash Type Response: Status=0x00
+>>  Read Flash ID Request
+<<  Read Flash ID Response: Status=0x00, ManufacturerID=0xff, FlashID=0xff
+>>  Read RAM Request: Address=0x01001570, Length=0x0008
+<<  Read RAM Response: Status=0x00, Data: ff ff ff ff ff ff ff ff
+>>  Read RAM Request: Address=0x01001580, Length=0x0008
+<<  Read RAM Response: Status=0x00, Data: 00 15 8d 00 02 c9 6e 9e
+>>  Read RAM Request: Address=0x01001400, Length=0x0010
+<<  Read RAM Response: Status=0x00, Data: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+>>  Read RAM Request: Address=0x01001510, Length=0x0010
+<<  Read RAM Response: Status=0x00, Data: ff ff ff de ff ff ff de ff ff ff de ff ff ff ff
+>>  Select Flash Type: FlashType=8, Address=0x00000000
+<<  Select Flash Type Response: Status=0x00
+>>  Reset Request
+<<  Reset Response: Status=0x00
