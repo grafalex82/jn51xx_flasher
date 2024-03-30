@@ -232,3 +232,11 @@ def dumpMessage(direction, msglen, msgtype, data, verbose=False):
     # If there is a dumper for this message type, call it (strip CRC byte from data)
     if msgtype in dumpers:
         dumpers[msgtype](data[:-1])
+
+
+def calcCRC(data):
+    res = 0
+    for b in data:
+        res ^= b
+    
+    return res
