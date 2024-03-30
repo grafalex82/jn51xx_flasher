@@ -6,6 +6,8 @@ from jn51xx_protocol import *
 
 verbose = "none"
 
+flash_data = [0xff] * (512 * 1024)  # 512KB of flash memory (JN5169)
+
 def calcCRC(data):
     res = 0
     for b in data:
@@ -67,6 +69,9 @@ def emulateSelectFlashType(ser, req):
 
 
 def emulateFlashErase(ser, req):
+    global flash_data
+    flash_data = [0xff] * (512 * 1024)  # Fill with all 0xff's
+
     resp = struct.pack("<B", 0)
     sendResponse(ser, FLASH_ERASE_RESPONSE, resp)
 
@@ -94,13 +99,23 @@ def emulateRAMWrite(ser, req):
 
 
 def emulateFlashWrite(ser, req):
-    addr = struct.unpack("<I", req[0:4])
+    addr = struct.unpack("<I", req[0:4])[0]
     data = req[4:]
 
-    # TODO: store data in memory
+    global flash_data
+    flash_data[addr : addr + len(data)] = data
 
     resp = struct.pack("<B", 0)
     sendResponse(ser, FLASH_WRITE_RESPONSE, resp)
+
+
+def emulateFlashRead(ser, req):
+    addr, len = struct.unpack("<IH", req)
+    data = bytes(flash_data[addr : addr + len])
+
+    resp = struct.pack("<B", 0)
+    resp += data
+    sendResponse(ser, FLASH_READ_RESPONSE, resp)
 
 
 def main():
@@ -143,6 +158,8 @@ def main():
             emulateRAMWrite(ser, data[:-1])
         elif msgtype == FLASH_WRITE_REQUEST:
             emulateFlashWrite(ser, data[:-1])
+        elif msgtype == FLASH_READ_REQUEST:
+            emulateFlashRead(ser, data[:-1])
         else:
             print("Unsupported message type: {:02x}".format(msgtype))
 
