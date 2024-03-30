@@ -53,7 +53,7 @@ class Flasher:
         resplen, resptype = struct.unpack('BB', data)
         data = self.ser.read(resplen - 1)
         check(data, "Incorrect response from device")
-        check(msgtype + 1 == resptype, "Incorrect response type")   # Looks like request and response type numbers are next to each other
+        check(msgtype + 1 == resptype, f"Incorrect response type ({msgtype:02x} != {resptype:02x})")   # Looks like request and response type numbers are next to each other
 
         # Dump the response
         if self.verbose != "none":
@@ -218,13 +218,15 @@ class Flasher:
         self.selectFlashType()
         self.eraseFlash()
 
-        # Flash data
-        for addr in range(0, len(firmware), 0x80):
-            chunklen = len(firmware) - addr
-            if chunklen > 0x80:
-                chunklen = 0x80
+        # Calculate the starting address of the last chunk
+        firmware_size = len(firmware)
+        start_addr = firmware_size - (firmware_size % 0x80 if firmware_size % 0x80 != 0 else 0x80)
+        chunklen = firmware_size - start_addr
 
-            self.writeFlash(addr, firmware[addr:addr+chunklen])
+        # Flash data in reverse order
+        for addr in range(start_addr, -1, -0x80):
+            self.writeFlash(addr, firmware[addr : addr + chunklen])
+            chunklen = 0x80
 
         # Finalize and reset the device into the firmware
         self.reset()
@@ -260,10 +262,10 @@ class Flasher:
     def readFirmware(self, filename):
         """ Read the firmware from the device """
 
-        self.getSettings()
+        self.getChipSettings()
 
         # Prepare flash
-        self.setFlashType()
+        self.selectFlashType()
 
         # Flash data
         firmware = b''
