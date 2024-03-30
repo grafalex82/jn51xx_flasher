@@ -55,7 +55,28 @@ Remember, the device needs to be in bootloader mode for this tool to work.
 
 # Emulator
 
+In order to simplify flash tool development, a chip emulator was created. The emulator is a simple application that mimics the chip's bootloader, and provide the same responses as the real chip would make. The emulator  allows to exercise original flash tool in different modes without having to flash the real microcontroller, and therefore avoid risk of damaging the device with an incorrect message.
 
+Usage:
+```
+usage: jn51xx_emulator.py [-h] [-v [{none,protocol,raw}]] port
+
+Emulate NXP JN5169 device
+
+positional arguments:
+  port                  Serial port
+
+options:
+  -h, --help            show this help message and exit
+  -v [{none,protocol,raw}], --verbose [{none,protocol,raw}]
+                        Set verbosity level
+```
+
+The tool works as a COM port client. A pair of bridged COM ports are needed to let the flash tool communicate with the emulator:
+
+```
+JN51xxProgrammer.exe <-> COM1 <-> COM2 <-> Emulator
+```
 
 # Protocol description
 
