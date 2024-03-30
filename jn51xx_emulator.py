@@ -2,7 +2,9 @@ import serial
 import struct
 import argparse
 
-verbose = False
+from jn51xx_protocol import *
+
+verbose = "none"
 
 def calcCRC(data):
     res = 0
@@ -11,117 +13,100 @@ def calcCRC(data):
     
     return res
 
-def sendMessage(ser, msgtype, data):
+def sendResponse(ser, msgtype, data):
     # Message header and data
-    msg = struct.pack("<BB", len(data) + 2, msgtype)
+    msglen = len(data) + 2
+    msg = struct.pack("<BB", msglen, msgtype)
     msg += data
     msg += calcCRC(msg).to_bytes(1, 'big')
 
-    if verbose:    
-        print("Sending: " + ' '.join('{:02x}'.format(x) for x in msg))
+    if verbose != "none":
+        dumpMessage(">", msglen, msgtype, msg[2:], verbose == "raw")
 
     ser.write(msg)
 
 
-def getChipId(ser, req):
-    print("MESSAGE: Get Chip ID")
-    
-    resp = struct.pack('>BI', 0, 0x0000b686)
-    sendMessage(ser, 0x33, resp)
+def emulateGetChipId(ser, data):
+    chipID = CHIP_ID_JN5169
+    bootloaderVer = 0x000b0002
+    resp = struct.pack('>BII', 0, chipID, bootloaderVer)
+    sendResponse(ser, GET_CHIP_ID_RESPONSE, resp)
 
 
-def emulateReadRAM(addr, len):
-    if addr == 0x00000062:
-        print("Reading bootloader version - emulating 42")
-        return struct.pack("<I", 42)
-    if addr == 0x01001570:
-        print("Reading MAC address - returning 00:11:22:33:44:55:66:77:88")
+def emulateRAMData(addr, len):
+    if addr == MEMORY_CONFIG_ADDRESS:
+        return struct.pack(">IIII", 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff)
+
+    if addr == FACTORY_MAC_ADDRESS:
         return struct.pack("<BBBBBBBB", 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88)
-    if addr == 0x01001500:
-        print("Reading Memory configuration")
-        return struct.pack(">IIII", 0x3f, 0x3f, 0x3f, 0)
     
-    print("Attempt to read {} bytes at unknown address {:08x}".format(len, addr))
+    if addr == OVERRIDEN_MAC_ADDRESS:
+        return struct.pack("<BBBBBBBB", 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff)
+    
+    if addr == CHIP_SETTINGS_ADDRESS:
+        return struct.pack(">IIII", 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff)
+    
+    print(f"Warning: Attempt to read {len} bytes at unknown address 0x{addr:08x}")
     return bytes(len)
 
 
-def readRAM(ser, req):
+def emulateRAMRead(ser, req):
     addr, len = struct.unpack("<IH", req)
-    print("MESSAGE: Read RAM addr={:08x} len={:04x}".format(addr, len))
-
     resp = struct.pack('>B', 0)
-    resp += emulateReadRAM(addr, len)
-    sendMessage(ser, 0x20, resp)
+    resp += emulateRAMData(addr, len)
+
+    sendResponse(ser, RAM_READ_RESPONSE, resp)
 
 
-def selectFlashType(ser, req):
+def emulateSelectFlashType(ser, req):
     flash, addr = struct.unpack("<BI", req)
  
     status = 0 if flash == 8 else 0xff  #Emulating only internal flash
-    print("MESSAGE: Select flash type {:02x} addr={:08x}  - status={:02x}".format(flash, addr, status))
-
     resp = struct.pack("<B", status)
-    sendMessage(ser, 0x2d, resp)
+    sendResponse(ser, SELECT_FLASH_TYPE_RESPONSE, resp)
 
 
-def flashErase(ser, req):
-    print("MESSAGE: Flash Erase")
-
+def emulateFlashErase(ser, req):
     resp = struct.pack("<B", 0)
-    sendMessage(ser, 0x08, resp)
+    sendResponse(ser, FLASH_ERASE_RESPONSE, resp)
 
 
-def setReset(ser, req):
-    print("MESSAGE: Set reset")
-
+def emulateReset(ser, req):
     resp = struct.pack("<B", 0)
-    sendMessage(ser, 0x15, resp)
+    sendResponse(ser, RESET_RESPONSE, resp)
 
 
-def changeBaudRate(ser, req):
-    br = struct.unpack("<B", req)
-    print("MESSAGE: Change baud rate to " + str(br[0]))
+def emulateChangeBaudRate(ser, req):
+    print("Warning: Changing the baud rate is not supported")
 
     resp = struct.pack("<B", 0xff)
-    sendMessage(ser, 0x28, resp)
+    sendResponse(ser, CHANGE_BAUD_RATE_RESPONSE, resp)
 
 
-def ramWrite(ser, req):
+def emulateRAMWrite(ser, req):
     addr = struct.unpack("<I", req[0:4])
     data = req[4:]
 
-    print("MESSAGE: RAM write at addr={:08x}".format(addr[0]))
-    if verbose:
-        print(": " + ' '.join('{:02x}'.format(x) for x in data))
+    # TODO: store data in memory
 
     resp = struct.pack("<B", 0)
-    sendMessage(ser, 0x1e, resp)
+    sendResponse(ser, RAM_WRITE_RESPONSE, resp)
 
 
-def flashWrite(ser, req):
+def emulateFlashWrite(ser, req):
     addr = struct.unpack("<I", req[0:4])
     data = req[4:]
 
-    print("MESSAGE: Flash write at addr={:08x}".format(addr[0]))
-    if verbose:
-        print(": " + ' '.join('{:02x}'.format(x) for x in data))
+    # TODO: store data in memory
 
     resp = struct.pack("<B", 0)
-    sendMessage(ser, 0x0a, resp)
+    sendResponse(ser, FLASH_WRITE_RESPONSE, resp)
 
-
-def dumpMessage(msglen, msgtype, data):
-    if not verbose:
-        return
-
-    print()
-    print("Received: " + "{:02x} {:02x} ".format(msglen, msgtype) + ' '.join('{:02x}'.format(x) for x in data))
-    
 
 def main():
-    parser = argparse.ArgumentParser(description="Flash NXP JN5169 device")
+    parser = argparse.ArgumentParser(description="Emulate NXP JN5169 device")
     parser.add_argument("port", help="Serial port")
-    parser.add_argument("-v", "--verbose", action='store_true', help="Set verbose mode")
+    parser.add_argument("-v", "--verbose", nargs='?', choices=["none", "protocol", "raw"], help="Set verbosity level", default="none")
     args = parser.parse_args()
     
     global verbose
@@ -131,32 +116,35 @@ def main():
     ser = serial.Serial(args.port, baudrate=38400, timeout=1)
 
     while True:
+        # Wait for a message, read the message header
         data = ser.read(2)
         if not data:
             continue
 
+        # Parse the message header, dump the message
         msglen, msgtype = struct.unpack('BB', data)
         data = ser.read(msglen - 1)
-        dumpMessage(msglen, msgtype, data)
+        dumpMessage("<", msglen, msgtype, data, verbose == "raw")
 
-        if msgtype == 0x32:
-            getChipId(ser, data[:-1])
-        elif msgtype == 0x1f:
-            readRAM(ser, data[:-1])
-        elif msgtype == 0x2c:
-            selectFlashType(ser, data[:-1])
-        elif msgtype == 0x27:
-            changeBaudRate(ser, data[:-1])
-        elif msgtype == 0x07:
-            flashErase(ser, data[:-1])
-        elif msgtype == 0x14:
-            setReset(ser, data[:-1])
-        elif msgtype == 0x1d:
-            ramWrite(ser, data[:-1])
-        elif msgtype == 0x09:
-            flashWrite(ser, data[:-1])
+        # Process the message depending on the message type
+        if msgtype == GET_CHIP_ID_REQUEST:
+            emulateGetChipId(ser, data[:-1])
+        elif msgtype == RAM_READ_REQUEST:
+            emulateRAMRead(ser, data[:-1])
+        elif msgtype == SELECT_FLASH_TYPE_REQUEST:
+            emulateSelectFlashType(ser, data[:-1])
+        elif msgtype == CHANGE_BAUD_RATE_REQUEST:
+            emulateChangeBaudRate(ser, data[:-1])
+        elif msgtype == FLASH_ERASE_REQUEST:
+            emulateFlashErase(ser, data[:-1])
+        elif msgtype == RESET_REQUEST:
+            emulateReset(ser, data[:-1])
+        elif msgtype == RAM_WRITE_REQUEST:
+            emulateRAMWrite(ser, data[:-1])
+        elif msgtype == FLASH_WRITE_REQUEST:
+            emulateFlashWrite(ser, data[:-1])
         else:
             print("Unsupported message type: {:02x}".format(msgtype))
 
-
-main()
+if __name__ == "__main__":
+    main()

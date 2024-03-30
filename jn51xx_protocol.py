@@ -5,6 +5,40 @@ import struct
 # a few messages are not described in the document, were just reverse engineered from the sniffed data, 
 # or their description is based on the JN51xxProgrammer.exe sources.
 
+FLASH_ERASE_REQUEST         = 0x07
+FLASH_ERASE_RESPONSE        = 0x08
+FLASH_WRITE_REQUEST         = 0x09
+FLASH_WRITE_RESPONSE        = 0x0a
+FLASH_READ_REQUEST          = 0x0b
+FLASH_READ_RESPONSE         = 0x0c
+RESET_REQUEST               = 0x14
+RESET_RESPONSE              = 0x15
+RAM_WRITE_REQUEST           = 0x1d
+RAM_WRITE_RESPONSE          = 0x1e
+RAM_READ_REQUEST            = 0x1f
+RAM_READ_RESPONSE           = 0x20
+RUN_REQUEST                 = 0x21
+RUN_RESPONSE                = 0x22
+READ_FLASH_ID_REQUEST       = 0x25
+READ_FLASH_ID_RESPONSE      = 0x26
+CHANGE_BAUD_RATE_REQUEST    = 0x27
+CHANGE_BAUD_RATE_RESPONSE   = 0x28
+SELECT_FLASH_TYPE_REQUEST   = 0x2c
+SELECT_FLASH_TYPE_RESPONSE  = 0x2d
+GET_CHIP_ID_REQUEST         = 0x32
+GET_CHIP_ID_RESPONSE        = 0x33
+EEPROM_READ_REQUEST         = 0x3a
+EEPROM_READ_RESPONSE        = 0x3b
+EEPROM_WRITE_REQUEST        = 0x3c
+EEPROM_WRITE_RESPONSE       = 0x3d
+
+CHIP_ID_JN5169              = 0x0100b686
+
+MEMORY_CONFIG_ADDRESS       = 0x01001500
+CHIP_SETTINGS_ADDRESS       = 0x01001510
+FACTORY_MAC_ADDRESS         = 0x01001570
+OVERRIDEN_MAC_ADDRESS       = 0x01001580
+
 def dumpGetChipIDRequest(data):
     print(">>  Chip ID Request")
 
@@ -21,10 +55,23 @@ def dumpGetChipIDResponse(data):
     print(f"<<  Chip ID Response: Status=0x{status:02x}, ChipID=0x{chipId:08x}, BootloaderVer=0x{bootloaderVer:08x}")
 
 
+def getSpecialRAMAddrString(addr):
+    addrstr = f"0x{addr:08x}"
+    if addr == MEMORY_CONFIG_ADDRESS: 
+        return addrstr + " (Memory Configuration)"
+    if addr == CHIP_SETTINGS_ADDRESS:
+        return addrstr + " (Chip Settings)"
+    if addr == FACTORY_MAC_ADDRESS: 
+        return addrstr + " (Factory MAC Address)"
+    if addr == OVERRIDEN_MAC_ADDRESS: 
+        return addrstr + " (Overriden MAC Address)"
+    return addrstr
+
+
 def dumpRAMWriteRequest(data):
-    addr = struct.unpack("<I", data[0:4])
+    addr = struct.unpack("<I", data[0:4])[0]
     data = data[4:]
-    print(f">>  Write RAM Request: Address=0x{addr[0]:08x}, Len=0x{len(data):02x}, Data: {' '.join(f'{x:02x}' for x in data)}")
+    print(f">>  Write RAM Request: Address={getSpecialRAMAddrString(addr)}, Len=0x{len(data):02x}, Data: {' '.join(f'{x:02x}' for x in data)}")
 
 
 def dumpRAMWriteResponse(data):
@@ -34,7 +81,7 @@ def dumpRAMWriteResponse(data):
 
 def dumpRAMReadRequest(data):
     addr, len = struct.unpack("<IH", data)
-    print(f">>  Read RAM Request: Address=0x{addr:08x}, Length=0x{len:04x}")
+    print(f">>  Read RAM Request: Address={getSpecialRAMAddrString(addr)}, Length=0x{len:04x}")
 
 
 def dumpRAMReadResponse(data):
@@ -149,32 +196,32 @@ def dumpChangeBaudRateResponse(data):
 
 
 dumpers = {
-    0x07: dumpFlashEraseRequest,
-    0x08: dumpFlashEraseResponse,
-    0x09: dumpFlashWriteRequest,
-    0x0a: dumpFlashWriteResponse,
-    0x0b: dumpFlashReadRequest,
-    0x0c: dumpFlashReadResponse,
-    0x14: dumpResetRequest,
-    0x15: dumpResetResponse,
-    0x1d: dumpRAMWriteRequest,
-    0x1e: dumpRAMWriteResponse,
-    0x1f: dumpRAMReadRequest,   
-    0x20: dumpRAMReadResponse,
-    0x21: dumpRunRequest,
-    0x22: dumpRunResponse,
-    0x25: dumpReadFlashIdRequest,
-    0x26: dumpReadFlashIdResponse,
-    0x27: dumpChangeBaudRateRequest,
-    0x28: dumpChangeBaudRateResponse,
-    0x2c: dumpSelectFlashTypeRequest,
-    0x2d: dumpSelectFlashTypeResponse,
-    0x32: dumpGetChipIDRequest,
-    0x33: dumpGetChipIDResponse,
-    0x3a: dumpEEPROMReadRequest,
-    0x3b: dumpEEPROMReadResponse,
-    0x3c: dumpEEPROMWriteRequest,
-    0x3d: dumpEEPROMWriteResponse,
+    FLASH_ERASE_REQUEST: dumpFlashEraseRequest,
+    FLASH_ERASE_RESPONSE: dumpFlashEraseResponse,
+    FLASH_WRITE_REQUEST: dumpFlashWriteRequest,
+    FLASH_WRITE_RESPONSE: dumpFlashWriteResponse,
+    FLASH_READ_REQUEST: dumpFlashReadRequest,
+    FLASH_READ_RESPONSE: dumpFlashReadResponse,
+    RESET_REQUEST: dumpResetRequest,
+    RESET_RESPONSE: dumpResetResponse,
+    RAM_WRITE_REQUEST: dumpRAMWriteRequest,
+    RAM_WRITE_RESPONSE: dumpRAMWriteResponse,
+    RAM_READ_REQUEST: dumpRAMReadRequest,
+    RAM_READ_RESPONSE: dumpRAMReadResponse,
+    RUN_REQUEST: dumpRunRequest,
+    RUN_RESPONSE: dumpRunResponse,
+    READ_FLASH_ID_REQUEST: dumpReadFlashIdRequest,
+    READ_FLASH_ID_RESPONSE: dumpReadFlashIdResponse,
+    CHANGE_BAUD_RATE_REQUEST: dumpChangeBaudRateRequest,
+    CHANGE_BAUD_RATE_RESPONSE: dumpChangeBaudRateResponse,
+    SELECT_FLASH_TYPE_REQUEST: dumpSelectFlashTypeRequest,
+    SELECT_FLASH_TYPE_RESPONSE: dumpSelectFlashTypeResponse,
+    GET_CHIP_ID_REQUEST: dumpGetChipIDRequest,
+    GET_CHIP_ID_RESPONSE: dumpGetChipIDResponse,
+    EEPROM_READ_REQUEST: dumpEEPROMReadRequest,
+    EEPROM_READ_RESPONSE: dumpEEPROMReadResponse,
+    EEPROM_WRITE_REQUEST: dumpEEPROMWriteRequest,
+    EEPROM_WRITE_RESPONSE: dumpEEPROMWriteResponse,
 }
 
 def dumpMessage(direction, msglen, msgtype, data, verbose=False):

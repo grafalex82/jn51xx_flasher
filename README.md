@@ -30,9 +30,9 @@ Here's how they connect:
 JN51xxProgrammer.exe <-> COM1 <-> COM2 <-> Sniffer/Dumper <-> COM3 <-> Device
 ```
 
-COM1 and COM2 are fake COM ports bridged together (you can make these using the HHD Virtual Serial Port Tools on Windows). COM3 is the real COM port connected to the microcontroller you want to program.
+COM1 and COM2 are fake COM ports bridged together (you can make these using the HHD Virtual Serial Port Tools on Windows). COM3 is the real COM port connected to the microcontroller you want to program. 
 
-Though this setup might seem complex, it actually makes it easier to capture and understand the flashing protocol than using just a COM port sniffer or a logic analyzer.
+Though this setup might seem complex, it actually makes it easier to capture and understand the flashing protocol than using just a COM port sniffer or a logic analyzer. Using bridged COM ports approach allows making the sniffing tool as a COM-port client, rather than emulating the COM port itself.
 
 
 Usage:

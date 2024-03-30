@@ -2,7 +2,7 @@ import serial
 import struct
 import argparse
 
-from jn51xx_dumper import dumpMessage
+from jn51xx_protocol import dumpMessage
 
 # This script proxies data from one serial port to another, and dumps all JN5169 flashing messages
 
