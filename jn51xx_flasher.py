@@ -2,6 +2,8 @@ import serial
 import struct
 import argparse
 import socket
+import time
+import sys
 
 from jn51xx_protocol import *
 
@@ -314,7 +316,10 @@ def main():
 
     # Open connection
     if args.port:
-        ser = serial.Serial(args.port, baudrate=38400, timeout=1)
+        ser = serial.Serial(args.port, baudrate=38400, timeout=2)
+        ser.flush()
+        ser.flushInput()
+        time.sleep(1)   # Let the device to boot
     if args.server:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((args.server, 5169))
