@@ -171,7 +171,7 @@ class Flasher:
     def writeFlash(self, addr, chunk):
         """ Write flash data at the given address """
 
-        print(f"Writing flash at addr {addr:08x}")
+        # print(f"Writing flash at addr {addr:08x}")
         req = struct.pack("<I", addr)
         req += chunk
         resp = self.sendRequest(FLASH_WRITE_REQUEST, req)
@@ -181,11 +181,34 @@ class Flasher:
     def readFlash(self, addr, len):
         """ Read flash data at the given address """
 
-        print(f"Reading flash at addr {addr:08x}")
+        # print(f"Reading flash at addr {addr:08x}")
         req = struct.pack("<IH", addr, len)
         resp = self.sendRequest(FLASH_READ_REQUEST, req)
         check(resp[0] == 0, "Wrong status on read flash request")
         return resp[1:1+len]
+
+
+    def changeBaudRate(self, baudrate):
+        """ Change the baud rate of the device """
+
+        # Calculate the divisor number
+        divisor = None
+        match baudrate:
+            case 1000000: divisor = 1
+            case 500000: divisor = 2
+            case 115200: divisor = 9
+            case 38400: divisor = 26
+        check(divisor, f"Unsupported baud rate {baudrate}")
+
+        # Send the baud rate change request, verify the device supports the new baud rate
+        print(f"Changing baud rate to {baudrate}")
+        req = struct.pack("<I", divisor)
+        resp = self.sendRequest(CHANGE_BAUD_RATE_REQUEST, req)
+        status = struct.unpack("<B", resp)
+        check(status[0] == 0, "Wrong status on change baud rate request")
+              
+        # Switch the baud rate
+        self.ser.baudrate = baudrate
 
 
     def loadFirmwareFile(self, filename):
@@ -230,9 +253,6 @@ class Flasher:
             self.writeFlash(addr, firmware[addr : addr + chunklen])
             chunklen = 0x80
 
-        # Finalize and reset the device into the firmware
-        self.reset()
-
 
     def verifyFirmware(self, filename):
         """ Verify the firmware on the device against the given file """
@@ -257,9 +277,6 @@ class Flasher:
 
         print("Firmware verification " + ("failed" if errors else "successful"))
 
-        # Finalize and reset the device into the firmware
-        self.reset()
-
 
     def readFirmware(self, filename):
         """ Read the firmware from the device """
@@ -274,9 +291,6 @@ class Flasher:
         for addr in range(0, 512*1024, 0x80):
             firmware += self.readFlash(addr, 0x80)
 
-        # Finalize and reset the device into the firmware
-        self.reset()
-
         # Save downloaded firmware content
         self.saveFirmwareFile(filename, firmware)
 
@@ -289,10 +303,17 @@ class Flasher:
         mac = self.getMAC()
         print("Effective device MAC address: " + ':'.join(f'{x:02x}' for x in mac))
 
+        # Try to change the baud rate to speed up the flashing process
+        self.changeBaudRate(1000000)
+
+        # Perform the requested action
         match action:
             case "write": self.writeFirmware(filename)
             case "read": self.readFirmware(filename)
             case "verify": self.verifyFirmware(filename)
+
+        # Finalize and reset the device into the firmware
+        self.reset()
 
 
 def main():
