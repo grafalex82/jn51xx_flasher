@@ -11,10 +11,25 @@ The flashing tool offers these advantages over the official NXP JN51xxProgrammer
 - The protocol and algorithm is well documented.
 
 Usage:
-TBD
+```
+usage: jn51xx_flasher.py [-h] [-p PORT] [-s SERVER] [-v [{none,protocol,raw}]] {read,write,verify} file
+
+Flash NXP JN5169 device
+
+positional arguments:
+  {read,write,verify}   Action to perform: read, write, verify
+  file                  Firmware file to flash
+
+options:
+  -h, --help            show this help message and exit
+  -p PORT, --port PORT  Serial port
+  -s SERVER, --server SERVER
+                        Remote flashing server
+  -v [{none,protocol,raw}], --verbose [{none,protocol,raw}]
+                        Set verbosity level
+```
 
 The following features are not supported at the moment, but their support may be added in future:
-- Programming is performed on 38400 baud rate (original tool bumps the baud rate to 1M after the handshake)
 - External flash support
 - EEPROM read/write
 - RAM write and execute
