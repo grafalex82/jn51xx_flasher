@@ -78,10 +78,25 @@ class Emulator:
 
 
     def emulateChangeBaudRate(self, req):
-        print("Warning: Changing the baud rate is not supported")
+        # Calculate the new baud rate
+        divisor = req[0]
+        baudrate = None
+        match divisor:
+            case 1: baudrate = 1000000
+            case 2: baudrate = 500000
+            case 9: baudrate = 115200
+            case 26: baudrate = 38400
 
-        resp = struct.pack("<B", 0xff)
+        # Send the response
+        status = 0 if baudrate is not None else 0xff
+        resp = struct.pack("<B", status)
         self.sendResponse(CHANGE_BAUD_RATE_RESPONSE, resp)
+
+        # Change the baud rate if it is supported
+        if baudrate:
+            self.ser.baudrate = baudrate
+        else:
+            print("Warning: Changing the baud rate is not supported")
 
 
     def emulateRAMWrite(self, req):
