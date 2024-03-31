@@ -45,7 +45,8 @@ def dumpGetChipIDRequest(data):
 
 def dumpGetChipIDResponse(data):
     # As per documentation, the chip ID response has only status byte, and ChipID (4 bytes) 
-    # However real device sends one more 4 byte value. As per JN51xxProgrammer.exe sources these 4 bytes might be bootloader version.
+    # However the real device sends one more 4 byte value. As per JN51xxProgrammer.exe sources
+    # these 4 bytes might be the bootloader version.
     bootloaderVer = None
     if len(data) == 5:
         status, chipId = struct.unpack('>BI', data)
