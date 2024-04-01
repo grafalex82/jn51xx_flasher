@@ -31,8 +31,6 @@ options:
 
 The following features are not supported at the moment, but their support may be added in future:
 - External flash support
-- EEPROM read/write
-- RAM write and execute
 - AES encoding
 - Setting brown out voltage, bootloader code protection, JTAG settings
 
