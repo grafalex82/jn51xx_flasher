@@ -4,6 +4,7 @@ import argparse
 import socket
 import time
 import sys
+import os
 
 from jn51xx_protocol import *
 
@@ -101,23 +102,55 @@ class Flasher:
         check(status[0] == 0, "Wrong status on select internal flash request")
 
 
+    def readMemory(self, addr, len, requestType):
+        """ Read memory data at the given address """
+
+        # print(f"Reading Memory at addr {addr:08x}")
+        req = struct.pack("<IH", addr, len)
+        resp = self.sendRequest(requestType, req)
+        check(resp[0] == 0, "Wrong status on read flash request")
+        return resp[1:1+len]
+
+
+    def writeMemory(self, addr, chunk, requestType):
+        """ Write memory data at the given address """
+
+        # print(f"Writing Memory at addr {addr:08x}")
+        req = struct.pack("<I", addr)
+        req += chunk
+        resp = self.sendRequest(requestType, req)
+        check(resp[0] == 0, "Wrong status on write memory command")
+
+
+    def readFlash(self, addr, len):
+        """ Read flash data at the given address """
+        return self.readMemory(addr, len, FLASH_READ_REQUEST)
+
+
+    def writeFlash(self, addr, chunk):
+        """ Write flash data at the given address """
+        return self.writeMemory(addr, chunk, FLASH_WRITE_REQUEST)
+
+
     def readRAM(self, addr, len):
         """ Read data from RAM at the given address """
-
-        req = struct.pack("<IH", addr, len)
-        resp = self.sendRequest(RAM_READ_REQUEST, req)
-        check(resp[0] == 0, "Wrong status on read RAM request")
-        return [x for x in resp[1:1+len]]
+        return self.readMemory(addr, len, RAM_READ_REQUEST)
 
 
     def writeRAM(self, addr, data):
         """ Write data to RAM at the given address """
+        return self.writeMemory(addr, data, RAM_WRITE_REQUEST)
 
-        req = struct.pack("<I", addr)
-        req += data
-        resp = self.sendRequest(RAM_WRITE_REQUEST, req)
-        check(resp[0] == 0, "Wrong status on read RAM request")
 
+    def readEEPROM(self, addr, len):
+        """ Read data from EEPROM at the given address """
+        return self.readMemory(addr, len, EEPROM_READ_REQUEST)
+    
+
+    def writeEEPROM(self, addr, data):
+        """ Write data to EEPROM at the given address """
+        return self.writeMemory(addr, data, EEPROM_WRITE_REQUEST)
+    
 
     def getChipSettings(self):
         """ Get the chip settings bytes """
@@ -160,32 +193,12 @@ class Flasher:
 
 
     def reset(self):
-        """ Reset the target micocontroller """
+        """ Reset the target microcontroller """
 
         print("Reset target device")
         resp = self.sendRequest(RESET_REQUEST, b'')
         status = struct.unpack("<B", resp)
         check(status[0] == 0, "Wrong status on reset device")
-
-
-    def writeFlash(self, addr, chunk):
-        """ Write flash data at the given address """
-
-        # print(f"Writing flash at addr {addr:08x}")
-        req = struct.pack("<I", addr)
-        req += chunk
-        resp = self.sendRequest(FLASH_WRITE_REQUEST, req)
-        check(resp[0] == 0, "Wrong status on write flash command")
-
-
-    def readFlash(self, addr, len):
-        """ Read flash data at the given address """
-
-        # print(f"Reading flash at addr {addr:08x}")
-        req = struct.pack("<IH", addr, len)
-        resp = self.sendRequest(FLASH_READ_REQUEST, req)
-        check(resp[0] == 0, "Wrong status on read flash request")
-        return resp[1:1+len]
 
 
     def changeBaudRate(self, baudrate):
@@ -210,6 +223,16 @@ class Flasher:
         # Switch the baud rate
         self.ser.baudrate = baudrate
 
+    
+    def execute(self, addr):
+        """ Execute the code at the given address """
+
+        print(f"Executing code at address {addr:08x}")
+        req = struct.pack("<I", addr)
+        resp = self.sendRequest(RUN_REQUEST, req)
+        status = struct.unpack("<B", resp)
+        check(status[0] == 0, "Wrong status on execute code request")
+
 
     def loadFirmwareFile(self, filename):
         """ Load the firmware file """
@@ -230,7 +253,7 @@ class Flasher:
 
         # Load a file to flash
         with open(filename, "w+b") as f:
-            f.write(b'\x0f\x03\x00\x0b')
+            # f.write(b'\x0f\x03\x00\x0b')
             f.write(content)
 
 
@@ -242,6 +265,9 @@ class Flasher:
         # Prepare flash
         self.selectFlashType()
         self.eraseFlash()
+
+        # Try to change the baud rate to speed up the flashing process
+        self.changeBaudRate(1000000)
 
         # Calculate the starting address of the last chunk
         firmware_size = len(firmware)
@@ -261,6 +287,9 @@ class Flasher:
 
         # Prepare the flash
         self.selectFlashType()
+
+        # Try to change the baud rate to speed up the flashing process
+        self.changeBaudRate(1000000)
 
         # Verify flash data
         errors = False
@@ -286,6 +315,9 @@ class Flasher:
         # Prepare flash
         self.selectFlashType()
 
+        # Try to change the baud rate to speed up the flashing process
+        self.changeBaudRate(1000000)
+
         # Flash data
         firmware = b''
         for addr in range(0, 512*1024, 0x80):
@@ -293,6 +325,79 @@ class Flasher:
 
         # Save downloaded firmware content
         self.saveFirmwareFile(filename, firmware)
+
+
+    def writeRAMData(self, addr, data):
+        """ Write a big piece of data to RAM at the given address """
+
+        # Write data in 128-bytes chunks
+        for offset in range(0, len(data), 128):
+            self.writeRAM(addr + offset, data[offset : offset + 128])
+
+
+    def loadExtension(self, filename):
+        """ Load and execute the bootloader extension file """
+
+        # Load the file data
+        with open(filename, "rb") as f:
+            ext = f.read()
+
+        # Parse the extension firmware header
+        check((ext[0:4] == b'\x0f\x03\x00\x0b') or (ext[0:4] == b'\x0f\x03\x00\x09'), "Incorrect extension firmware format")
+        text_start = 0x04000000 + struct.unpack(">H", ext[0x2c : 0x2c + 2])[0] * 4
+        text_len = struct.unpack(">H", ext[0x2e : 0x2e + 2])[0] * 4
+        bss_start = 0x04000000 + struct.unpack(">H", ext[0x30 : 0x30 + 2])[0] * 4
+        bss_len = struct.unpack(">H", ext[0x32 : 0x32 + 2])[0] * 4
+        entry_point = struct.unpack(">I", ext[0x38 : 0x38 + 4])[0]
+
+        # Upload the extension firmware
+        self.writeRAMData(text_start, ext[0x3c : 0x3c + text_len])
+
+        # Clean the BSS section
+        self.writeRAMData(bss_start, b'\x00' * bss_len)
+
+        # Execute the extension
+        self.execute(entry_point)
+
+
+    def readEEPROMMemory(self, filename):
+        """ Read the EEPROM memory from the device """
+
+        # Upload the extension firmware
+        extension = os.path.join(os.path.dirname(__file__), "extension/FlashProgrammerExtension_JN5169.bin")
+        self.loadExtension(extension)
+
+        # Read EEPROM data
+        eeprom = b''
+        for addr in range(0, 16 * 1024 - 64, 0x40):
+            eeprom += self.readEEPROM(addr, 0x40)
+
+        # Save downloaded EEPROM content
+        self.saveFirmwareFile(filename, eeprom)
+
+        # Switch back to the bootloader
+        self.execute(0x00000066)
+        time.sleep(1)   # Let the bootloader to start
+
+
+    def writeEEPROMMemory(self, filename):
+        """ Write the EEPROM memory to the device """
+
+        # Upload the extension firmware
+        extension = os.path.join(os.path.dirname(__file__), "extension/FlashProgrammerExtension_JN5169.bin")
+        self.loadExtension(extension)
+
+        # Load the EEPROM data
+        with open(filename, "rb") as f:
+            eeprom = f.read()
+
+        # Write EEPROM data
+        for addr in range(0, 16 * 1024 - 64, 0x40):
+            self.writeEEPROM(addr, eeprom[addr : addr + 0x40])
+
+        # Switch back to the bootloader
+        self.execute(0x00000066)
+        time.sleep(1)   # Let the bootloader to start
 
 
     def run(self, action, filename):
@@ -303,14 +408,13 @@ class Flasher:
         mac = self.getMAC()
         print("Effective device MAC address: " + ':'.join(f'{x:02x}' for x in mac))
 
-        # Try to change the baud rate to speed up the flashing process
-        self.changeBaudRate(1000000)
-
         # Perform the requested action
         match action:
             case "write": self.writeFirmware(filename)
             case "read": self.readFirmware(filename)
             case "verify": self.verifyFirmware(filename)
+            case "eeprom_read": self.readEEPROMMemory(filename)
+            case "eeprom_write": self.writeEEPROMMemory(filename)
 
         # Finalize and reset the device into the firmware
         self.reset()
@@ -322,7 +426,8 @@ def main():
     parser.add_argument("-p", "--port", help="Serial port")
     parser.add_argument("-s", "--server", help="Remote flashing server")
     parser.add_argument("-v", "--verbose", nargs='?', choices=["none", "protocol", "raw"], help="Set verbosity level", default="none")
-    parser.add_argument("action", choices=["read", "write", "verify"], help="Action to perform: read, write, verify")
+    parser.add_argument("action", choices=["read", "write", "verify", "eeprom_read", "eeprom_write"], 
+                        help="Action to perform: read, write, verify, eeprom_read, eeprom_write")
     parser.add_argument("file", help="Firmware file to flash")
     args = parser.parse_args()
 
